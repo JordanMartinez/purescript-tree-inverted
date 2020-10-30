@@ -5,11 +5,12 @@ import Prelude
 import Control.Monad.ST (for)
 import Control.Monad.ST as ST
 import Data.Array (foldr, length, snoc, unsafeIndex, (..))
-import Data.Array.NonEmpty (NonEmptyArray)
+import Data.Array.NonEmpty (NonEmptyArray, zip)
 import Data.Array.NonEmpty as NEA
 import Data.Array.ST as STA
 import Data.FoldableWithIndex (foldlWithIndex)
 import Data.HashSet as HashSet
+import Data.NonEmpty (foldl1)
 import Data.Tuple (Tuple(..))
 import Partial.Unsafe (unsafePartial)
 
@@ -176,6 +177,16 @@ rootToChildIndexPath idx tree@(Tree rec) = do
 childToRootIndexPath :: forall a. ArrayIndex -> Tree a -> NonEmptyArray ArrayIndex
 childToRootIndexPath idx tree =
   NEA.reverse $ rootToChildIndexPath idx tree
+
+commonParentIndex :: forall a. ArrayIndex -> ArrayIndex -> Tree a -> ArrayIndex
+commonParentIndex l r tree = do
+  let
+    lpath = rootToChildIndexPath l tree
+    rpath = rootToChildIndexPath r tree
+    combo = zip lpath rpath
+    lastSharedPath acc next@(Tuple a b) = if a == b then next else acc
+    Tuple sharedIdx _ = foldl1 lastSharedPath (NEA.toNonEmpty combo)
+  sharedIdx
 
 depth :: forall a. ArrayIndex -> Tree a -> Int
 depth idx tree = NEA.length $ rootToChildIndexPath idx tree
