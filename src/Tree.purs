@@ -129,25 +129,25 @@ pushChild a parentIdx (Tree tree) = do
 
 -- Internal
 
-valueAt :: forall a. ArrayIndex -> Tree a -> a
-valueAt idx (Tree tree) = unsafePartial $ unsafeIndex tree.nodes idx
+valueAt :: forall a. Partial => ArrayIndex -> Tree a -> a
+valueAt idx (Tree tree) = unsafeIndex tree.nodes idx
 
-parentIndex :: forall a. ArrayIndex -> Tree a -> ArrayIndex
-parentIndex idx (Tree tree) = unsafePartial $ unsafeIndex tree.parents idx
+parentIndex :: forall a. Partial => ArrayIndex -> Tree a -> ArrayIndex
+parentIndex idx (Tree tree) = unsafeIndex tree.parents idx
 
-childrenIndices :: forall a. ArrayIndex -> Tree a -> Array ArrayIndex
+childrenIndices :: forall a. Partial => ArrayIndex -> Tree a -> Array ArrayIndex
 childrenIndices idx (Tree tree) = foldlWithIndex f [] tree.parents
   where
     f index acc parentIdx = if parentIdx == idx then acc `snoc` index else acc
 
-siblingIndices :: forall a. ArrayIndex -> Tree a -> Array ArrayIndex
+siblingIndices :: forall a. Partial => ArrayIndex -> Tree a -> Array ArrayIndex
 siblingIndices childIdx theTree@(Tree tree) = foldlWithIndex f [] tree.parents
   where
     parent = parentIndex childIdx theTree
     f index acc parentIdx =
       if parentIdx == parent && index /= childIdx then acc `snoc` index else acc
 
-setParentIndex :: forall a. ChildIndex -> ParentIndex -> Tree a -> Tree a
+setParentIndex :: forall a. Partial => ChildIndex -> ParentIndex -> Tree a -> Tree a
 setParentIndex childIdx parentIdx (Tree tree) =
   Tree tree { parents = newparents }
   where
@@ -156,7 +156,7 @@ setParentIndex childIdx parentIdx (Tree tree) =
       _ <- STA.poke childIdx parentIdx stArray
       pure stArray
 
-rootToChildIndexPath :: forall a. ArrayIndex -> Tree a -> NonEmptyArray ArrayIndex
+rootToChildIndexPath :: forall a. Partial => ArrayIndex -> Tree a -> NonEmptyArray ArrayIndex
 rootToChildIndexPath idx tree@(Tree rec) = do
   let
     parent = parentIndex idx tree
@@ -174,11 +174,11 @@ rootToChildIndexPath idx tree@(Tree rec) = do
       else
         buildIndexPath parent currentPath
 
-childToRootIndexPath :: forall a. ArrayIndex -> Tree a -> NonEmptyArray ArrayIndex
+childToRootIndexPath :: forall a. Partial => ArrayIndex -> Tree a -> NonEmptyArray ArrayIndex
 childToRootIndexPath idx tree =
   NEA.reverse $ rootToChildIndexPath idx tree
 
-commonParentIndex :: forall a. ArrayIndex -> ArrayIndex -> Tree a -> ArrayIndex
+commonParentIndex :: forall a. Partial => ArrayIndex -> ArrayIndex -> Tree a -> ArrayIndex
 commonParentIndex l r tree = do
   let
     lpath = rootToChildIndexPath l tree
@@ -188,7 +188,7 @@ commonParentIndex l r tree = do
     Tuple sharedIdx _ = foldl1 lastSharedPath (NEA.toNonEmpty combo)
   sharedIdx
 
-depth :: forall a. ArrayIndex -> Tree a -> Int
+depth :: forall a. Partial => ArrayIndex -> Tree a -> Int
 depth idx tree = NEA.length $ rootToChildIndexPath idx tree
 
 -- Utility functions not found in `purescript-arrays`.
