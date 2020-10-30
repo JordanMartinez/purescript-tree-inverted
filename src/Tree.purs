@@ -4,12 +4,13 @@ import Prelude
 
 import Control.Monad.ST (for)
 import Control.Monad.ST as ST
-import Data.Array (foldr, length, snoc, unsafeIndex, (..))
+import Data.Array (foldr, length, modifyAt, snoc, unsafeIndex, updateAt, (..))
 import Data.Array.NonEmpty (NonEmptyArray, zip)
 import Data.Array.NonEmpty as NEA
 import Data.Array.ST as STA
 import Data.FoldableWithIndex (foldlWithIndex, forWithIndex_)
 import Data.HashSet as HashSet
+import Data.Maybe (fromJust)
 import Data.NonEmpty (foldl1)
 import Data.Tuple (Tuple(..))
 import Partial.Unsafe (unsafePartial)
@@ -149,6 +150,14 @@ siblingIndices childIdx theTree@(Tree tree) = foldlWithIndex f [] tree.parents
     parent = parentIndex childIdx theTree
     f index acc parentIdx =
       if parentIdx == parent && index /= childIdx then acc `snoc` index else acc
+
+updateNode :: forall a. Partial => ChildIndex -> a -> Tree a -> Tree a
+updateNode idx newValue (Tree tree) =
+  Tree tree { nodes = fromJust $ updateAt idx newValue tree.nodes }
+
+modifyNode :: forall a. Partial => ChildIndex -> (a -> a) -> Tree a -> Tree a
+modifyNode idx modify (Tree tree) =
+  Tree tree { nodes = fromJust $ modifyAt idx modify tree.nodes }
 
 setParentIndex :: forall a. Partial => ChildIndex -> ParentIndex -> Tree a -> Tree a
 setParentIndex childIdx parentIdx (Tree tree) =
