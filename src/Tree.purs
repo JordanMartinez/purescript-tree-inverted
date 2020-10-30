@@ -130,8 +130,8 @@ pushChild a parentIdx (Tree tree) = do
 
 -- Internal
 
-valueAt :: forall a. Partial => ArrayIndex -> Tree a -> a
-valueAt idx (Tree tree) = unsafeIndex tree.nodes idx
+nodeAt :: forall a. Partial => ArrayIndex -> Tree a -> a
+nodeAt idx (Tree tree) = unsafeIndex tree.nodes idx
 
 parentIndex :: forall a. Partial => ArrayIndex -> Tree a -> ArrayIndex
 parentIndex idx (Tree tree) = unsafeIndex tree.parents idx
