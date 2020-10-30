@@ -130,6 +130,8 @@ pushChild a parentIdx (Tree tree) = do
 
 -- Internal
 
+---- Query information
+
 nodeAt :: forall a. Partial => ArrayIndex -> Tree a -> a
 nodeAt idx (Tree tree) = unsafeIndex tree.nodes idx
 
@@ -150,25 +152,6 @@ siblingIndices childIdx theTree@(Tree tree) = foldlWithIndex f [] tree.parents
     parent = parentIndex childIdx theTree
     f index acc parentIdx =
       if parentIdx == parent && index /= childIdx then acc `snoc` index else acc
-
-updateNode :: forall a. Partial => ChildIndex -> a -> Tree a -> Tree a
-updateNode idx newValue (Tree tree) =
-  Tree tree { nodes = fromJust $ updateAt idx newValue tree.nodes }
-
-modifyNode :: forall a. Partial => ChildIndex -> (a -> a) -> Tree a -> Tree a
-modifyNode idx modify (Tree tree) =
-  Tree tree { nodes = fromJust $ modifyAt idx modify tree.nodes }
-
--- Note: this is safe unless one sets the root node's parent to anything
--- else but itself. Doing so will create an infinite loop.
-setParentIndex :: forall a. Partial => ChildIndex -> ParentIndex -> Tree a -> Tree a
-setParentIndex childIdx parentIdx (Tree tree) =
-  Tree tree { parents = newparents }
-  where
-    newparents = STA.run do
-      stArray <- STA.thaw tree.parents
-      _ <- STA.poke childIdx parentIdx stArray
-      pure stArray
 
 rootToChildIndexPath :: forall a. Partial => ArrayIndex -> Tree a -> NonEmptyArray ArrayIndex
 rootToChildIndexPath idx tree@(Tree rec) = do
@@ -204,6 +187,25 @@ commonParentIndex l r tree = do
 
 depth :: forall a. Partial => ArrayIndex -> Tree a -> Int
 depth idx tree = NEA.length $ rootToChildIndexPath idx tree
+
+updateNode :: forall a. Partial => ChildIndex -> a -> Tree a -> Tree a
+updateNode idx newValue (Tree tree) =
+  Tree tree { nodes = fromJust $ updateAt idx newValue tree.nodes }
+
+modifyNode :: forall a. Partial => ChildIndex -> (a -> a) -> Tree a -> Tree a
+modifyNode idx modify (Tree tree) =
+  Tree tree { nodes = fromJust $ modifyAt idx modify tree.nodes }
+
+-- Note: this is safe unless one sets the root node's parent to anything
+-- else but itself. Doing so will create an infinite loop.
+setParentIndex :: forall a. Partial => ChildIndex -> ParentIndex -> Tree a -> Tree a
+setParentIndex childIdx parentIdx (Tree tree) =
+  Tree tree { parents = newparents }
+  where
+    newparents = STA.run do
+      stArray <- STA.thaw tree.parents
+      _ <- STA.poke childIdx parentIdx stArray
+      pure stArray
 
 -- Utility functions not found in `purescript-arrays`.
 
