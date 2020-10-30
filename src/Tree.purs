@@ -159,6 +159,8 @@ modifyNode :: forall a. Partial => ChildIndex -> (a -> a) -> Tree a -> Tree a
 modifyNode idx modify (Tree tree) =
   Tree tree { nodes = fromJust $ modifyAt idx modify tree.nodes }
 
+-- Note: this is safe unless one sets the root node's parent to anything
+-- else but itself. Doing so will create an infinite loop.
 setParentIndex :: forall a. Partial => ChildIndex -> ParentIndex -> Tree a -> Tree a
 setParentIndex childIdx parentIdx (Tree tree) =
   Tree tree { parents = newparents }
