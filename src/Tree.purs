@@ -8,7 +8,7 @@ import Data.Array (foldr, length, snoc, unsafeIndex, (..))
 import Data.Array.NonEmpty (NonEmptyArray, zip)
 import Data.Array.NonEmpty as NEA
 import Data.Array.ST as STA
-import Data.FoldableWithIndex (foldlWithIndex)
+import Data.FoldableWithIndex (foldlWithIndex, forWithIndex_)
 import Data.HashSet as HashSet
 import Data.NonEmpty (foldl1)
 import Data.Tuple (Tuple(..))
@@ -136,9 +136,12 @@ parentIndex :: forall a. Partial => ArrayIndex -> Tree a -> ArrayIndex
 parentIndex idx (Tree tree) = unsafeIndex tree.parents idx
 
 childrenIndices :: forall a. Partial => ArrayIndex -> Tree a -> Array ArrayIndex
-childrenIndices idx (Tree tree) = foldlWithIndex f [] tree.parents
-  where
-    f index acc parentIdx = if parentIdx == idx then acc `snoc` index else acc
+childrenIndices idx (Tree tree) = STA.run do
+  arr <- STA.empty
+  forWithIndex_ tree.parents \nodeIndex parentIdx -> do
+    when (parentIdx == idx) do
+      void $ STA.push nodeIndex arr
+  pure arr
 
 siblingIndices :: forall a. Partial => ArrayIndex -> Tree a -> Array ArrayIndex
 siblingIndices childIdx theTree@(Tree tree) = foldlWithIndex f [] tree.parents
