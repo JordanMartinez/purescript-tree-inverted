@@ -8,7 +8,6 @@ import Data.Array (foldl, foldr, length, modifyAt, snoc, unsafeIndex, updateAt, 
 import Data.Array.NonEmpty (NonEmptyArray, zip)
 import Data.Array.NonEmpty as NEA
 import Data.Array.ST as STA
-import Data.Array.ST.Partial as STAP
 import Data.Foldable (for_)
 import Data.FoldableWithIndex (foldlWithIndex, forWithIndex_)
 import Data.HashSet as HashSet
@@ -75,8 +74,6 @@ deepCopy (Tree {nodes, parents}) = Tree $ ST.run do
   let lastIndex = (length nodes) - 1
   out1 <- STA.empty
   out2 <- STA.empty
-  readOnly1 <- STA.unsafeThaw nodes
-  readOnly2 <- STA.unsafeThaw parents
   for 0 lastIndex \currentIndex -> do
     let el1 = unsafePartial $ unsafeIndex nodes currentIndex
     _ <- STA.push el1 out1
@@ -380,14 +377,12 @@ buildInvertedTable (Tuple first second) = ST.run do
   let lastIndex = (length first.array) - 1
   out1 <- STA.empty
   out2 <- STA.empty
-  readOnly1 <- STA.unsafeThaw first.array
-  readOnly2 <- STA.unsafeThaw second.array
   for 0 lastIndex \currentIndex -> do
-    el1 <- unsafePartial $ STAP.peek currentIndex readOnly1
+    let el1 = unsafePartial $ unsafeIndex first.array currentIndex
     for_ (first.includeModify currentIndex el1) \element ->
       STA.push element out1
 
-    el2 <- unsafePartial $ STAP.peek currentIndex readOnly2
+    let el2 = unsafePartial $ unsafeIndex second.array currentIndex
     for_ (second.includeModify currentIndex el2) \element ->
       STA.push element out2
 
