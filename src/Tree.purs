@@ -182,12 +182,7 @@ parentToChildIndexPath targetParent originalChild tree@(Tree rec) = do
 
 rootToChildIndexPath :: forall a. Partial => ArrayIndex -> Tree a -> NonEmptyArray ArrayIndex
 rootToChildIndexPath idx tree@(Tree rec) = do
-  let
-    parent = parentIndex idx tree
-    currentPath = NEA.singleton idx
-  if parent == idx
-    then currentPath
-    else buildIndexPath parent currentPath
+  buildIndexPath idx (NEA.singleton idx)
   where
     buildIndexPath :: ArrayIndex -> NonEmptyArray ArrayIndex -> NonEmptyArray ArrayIndex
     buildIndexPath currentIndex pathSoFar = do
