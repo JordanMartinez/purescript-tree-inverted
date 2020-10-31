@@ -158,14 +158,14 @@ recursiveChildrenIndices parentIdx t@(Tree tree) =
         Just ar -> foldr HashSet.insert set ar
 
 siblingIndices :: forall a. Partial => ArrayIndex -> Tree a -> Array ArrayIndex
-siblingIndices childIdx theTree@(Tree tree) = foldlWithIndex f [] tree.parents
+siblingIndices childIdx t@(Tree tree) = foldlWithIndex f [] tree.parents
   where
-    parent = parentIndex childIdx theTree
+    parent = parentIndex childIdx t
     f index acc parentIdx =
       if parentIdx == parent && index /= childIdx then acc `snoc` index else acc
 
 parentToChildIndexPath :: forall a. Partial => ParentIndex -> ChildIndex -> Tree a -> Maybe (NonEmptyArray ArrayIndex)
-parentToChildIndexPath targetParent originalChild tree@(Tree rec) = do
+parentToChildIndexPath targetParent originalChild tree = do
   buildIndexPath originalChild (NEA.singleton originalChild)
   where
     buildIndexPath :: ArrayIndex -> NonEmptyArray ArrayIndex -> Maybe (NonEmptyArray ArrayIndex)
@@ -180,7 +180,7 @@ parentToChildIndexPath targetParent originalChild tree@(Tree rec) = do
       else buildIndexPath parent currentPath
 
 rootToChildIndexPath :: forall a. Partial => ArrayIndex -> Tree a -> NonEmptyArray ArrayIndex
-rootToChildIndexPath idx tree@(Tree rec) = do
+rootToChildIndexPath idx tree = do
   buildIndexPath idx (NEA.singleton idx)
   where
     buildIndexPath :: ArrayIndex -> NonEmptyArray ArrayIndex -> NonEmptyArray ArrayIndex
