@@ -4,12 +4,13 @@ import Prelude
 
 import Control.Monad.ST (for)
 import Control.Monad.ST as ST
-import Data.Array (foldr, length, modifyAt, snoc, unsafeIndex, updateAt, (..))
+import Data.Array (catMaybes, foldl, foldr, length, modifyAt, snoc, unsafeIndex, updateAt, (..))
 import Data.Array.NonEmpty (NonEmptyArray, zip)
 import Data.Array.NonEmpty as NEA
 import Data.Array.ST as STA
 import Data.Array.ST.Partial as STAP
 import Data.FoldableWithIndex (foldlWithIndex, forWithIndex_)
+import Data.HashSet (HashSet)
 import Data.HashSet as HashSet
 import Data.Maybe (Maybe(..), fromJust)
 import Data.NonEmpty (foldl1)
@@ -139,13 +140,23 @@ nodeAt idx (Tree tree) = unsafeIndex tree.nodes idx
 parentIndex :: forall a. Partial => ArrayIndex -> Tree a -> ArrayIndex
 parentIndex idx (Tree tree) = unsafeIndex tree.parents idx
 
-childrenIndices :: forall a. Partial => ArrayIndex -> Tree a -> Array ArrayIndex
-childrenIndices idx (Tree tree) = STA.run do
+immediateChildrenIndices :: forall a. Partial => ArrayIndex -> Tree a -> Array ArrayIndex
+immediateChildrenIndices idx (Tree tree) = STA.run do
   arr <- STA.empty
   forWithIndex_ tree.parents \nodeIndex parentIdx -> do
     when (parentIdx == idx) do
       void $ STA.push nodeIndex arr
   pure arr
+
+recursiveChildrenIndices :: forall a. Partial => ParentIndex -> Tree a -> Array ChildIndex
+recursiveChildrenIndices parentIdx t@(Tree tree) =
+  HashSet.toArray $ foldl doFold HashSet.empty tree.parents
+  where
+    doFold :: _ -> Int -> _
+    doFold set childIdx = do
+      case parentToChildIndexPath parentIdx childIdx t of
+        Nothing -> set
+        Just ar -> foldr HashSet.insert set ar
 
 siblingIndices :: forall a. Partial => ArrayIndex -> Tree a -> Array ArrayIndex
 siblingIndices childIdx theTree@(Tree tree) = foldlWithIndex f [] tree.parents
