@@ -348,35 +348,6 @@ findIndices found arr = STA.run do
         void $ STA.push idx ar
     pure ar
 
-deepCopyArray :: forall a. Array a -> Array a
-deepCopyArray arr = STA.run (STA.thaw arr)
-
-withoutIdx :: forall b. Int -> Array b -> Array b
-withoutIdx indexToRemove array = STA.run do
-  let lastIndex = (length array) - 1
-  arr <- STA.empty
-  readOnlyArray <- STA.unsafeThaw array
-  for 0 lastIndex \currentIndex -> do
-    el <- unsafePartial $ STAP.peek currentIndex readOnlyArray
-    if currentIndex /= indexToRemove then do
-      void $ STA.push el arr
-    else {- currentIndex == indexToRemove -} do
-      pure unit
-  pure arr
-
-withoutIndexModify :: Int -> (Int -> Int) -> Array Int -> Array Int
-withoutIndexModify indexToRemove modify originalArray = STA.run do
-  let lastIndex = (length originalArray) - 1
-  outputArray <- STA.empty
-  readOnlyArray <- STA.unsafeThaw originalArray
-  for 0 lastIndex \currentIndex -> do
-    el <- unsafePartial $ STAP.peek currentIndex readOnlyArray
-    if currentIndex /= indexToRemove then do
-      void $ STA.push (modify currentIndex) outputArray
-    else {- currentIndex == indexToRemove -} do
-      pure unit
-  pure outputArray
-
 {-
 What led me here.
 
