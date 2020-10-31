@@ -89,58 +89,52 @@ deepCopy (Tree {nodes, parents}) = Tree $ ST.run do
 
 -- Construction
 
-newtype TreeBuilderZipper a = TreeBuilderZipper
-  { tree :: Tree a
-  , focus :: ParentIndex
-  }
-
-newtype TreeBuilder h a =
-  TreeBuilder (TreeBuilderZipper a -> TreeBuilderZipper a)
+newtype TreeBuilder h a = TreeBuilder
+  ( { nodeArray :: STA.STArray h a
+    , parentArray :: STA.STArray h Int
+    }
+  -> ParentIndex
+  -> ST.ST h ArrayIndex
+  )
 
 buildTree :: forall a. a -> (forall h. TreeBuilder h a) -> Tree a
-buildTree root (TreeBuilder builder) = do
-  let
-    TreeBuilderZipper finished =
-      -- This is safe to do because we constructed the arrays here and
-      -- will not use them until after we have mutated them.
-      unsafePartial (builder zipper)
-  finished.tree
-  where
-    tree = Tree { nodes: [root], parents: [0] } -- array construction
-    zipper = TreeBuilderZipper { tree, focus: 0 }
+buildTree root (TreeBuilder builder) = Tree $ ST.run do
+  nodeArray <- STA.empty
+  parentArray <- STA.empty
+  let rec = { nodeArray, parentArray }
 
-addBranchChild :: forall h a. Partial => a -> TreeBuilder h a -> TreeBuilder h a
-addBranchChild parent (TreeBuilder addChildren) = TreeBuilder \(TreeBuilderZipper zipper) -> do
-  let
-    Tuple parentIndex treeWithParent = pushChild parent zipper.focus zipper.tree
-    TreeBuilderZipper allDone = addChildren (TreeBuilderZipper { tree: treeWithParent, focus: parentIndex })
-  TreeBuilderZipper allDone { focus = zipper.focus }
+  _ <- unsafePartial $ pushNode rec 0 root
+  _ <- builder rec 0
 
-addLeafChild :: forall h a. Partial => a -> TreeBuilder h a
-addLeafChild a = TreeBuilder \(TreeBuilderZipper zipper) -> do
-  let
-    Tuple newFocus newTree = pushChild a zipper.focus zipper.tree
-  TreeBuilderZipper { tree: newTree, focus: newFocus }
+  nodes <- STA.unsafeFreeze nodeArray
+  parents <- STA.unsafeFreeze parentArray
 
--- This function is partial because it uses `unsafeThaw`. It should only be
--- used on `Tree`s that were constructed correctly within this file
--- or after one has made a `deepCopy` of a `Tree`.
-pushChild :: forall a. Partial => a -> ParentIndex -> Tree a -> Tuple ChildIndex (Tree a)
-pushChild a parentIdx (Tree tree) = do
-  let
-    Tuple leafIdx nodes = ST.run do
-        arr <- STA.unsafeThaw tree.nodes
-        len <- STA.push a arr
-        safeArray <- STA.unsafeFreeze arr
-        pure (Tuple (len - 1) safeArray)
-    newTree = Tree
-      { nodes
-      , parents: STA.run do
-          arr <- STA.unsafeThaw tree.parents
-          _ <- STA.push parentIdx arr
-          pure arr
-      }
-  Tuple leafIdx newTree
+  pure { nodes: [], parents: [] }
+
+pushBranch :: forall h a
+   . a -> TreeBuilder h a -> TreeBuilder h a
+pushBranch branch (TreeBuilder addChildren) = TreeBuilder \rec parentIdx -> do
+  branchIndex <- unsafePartial $ pushNode rec parentIdx branch
+  _ <- addChildren rec branchIndex
+  pure branchIndex
+
+pushChild :: forall h a
+   . a -> TreeBuilder h a
+pushChild child = TreeBuilder \rec parentIdx -> do
+  unsafePartial $ pushNode rec parentIdx child
+
+pushNode :: forall h a
+   . Partial
+  => { nodeArray :: STA.STArray h a
+     , parentArray :: STA.STArray h Int
+     }
+  -> ParentIndex
+  -> a
+  -> ST.ST h ArrayIndex
+pushNode rec parentIdx a = do
+  len <- STA.push a rec.nodeArray
+  _ <- STA.push parentIdx rec.parentArray
+  pure (len - 1)
 
 -- Internal
 
