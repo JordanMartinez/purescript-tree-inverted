@@ -224,8 +224,12 @@ modifyNode :: forall a. Partial => ChildIndex -> (a -> a) -> Tree a -> Tree a
 modifyNode idx modify (Tree tree) =
   Tree tree { nodes = fromJust $ modifyAt idx modify tree.nodes }
 
--- Note: this is safe unless one sets the root node's parent to anything
--- else but itself. Doing so will create an infinite loop.
+-- Note: when the parent index is a valid index into the array, this is safe
+-- to do except in the following cases:
+-- 1. the child in question is the root and you set it to something other than
+--     itself (i.e. making the tree `root`less, producing an infinite loop).
+-- 2. you set the child in question to its own index, thereby making a tree
+--     that has two roots.
 setParentIndex :: forall a. Partial => ChildIndex -> ParentIndex -> Tree a -> Tree a
 setParentIndex childIdx parentIdx (Tree tree) =
   Tree tree { parents = newparents }
