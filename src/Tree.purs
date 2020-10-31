@@ -263,6 +263,8 @@ deleteChild indexToRemove (Tree tree) = Tree { nodes, parents }
     shiftLeftIfNeeded i = if i > indexToRemove then (i - 1) else i
     parents = withoutIndexModify indexToRemove shiftLeftIfNeeded tree.parents
 
+-- Makes a branch's children to be the branch's parent's children and
+-- then deletes the branch.
 deleteBranch :: forall a. Partial => ChildIndex -> Tree a -> Tree a
 deleteBranch indexToRemove t@(Tree tree) = Tree { nodes, parents }
   where
