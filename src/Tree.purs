@@ -279,9 +279,18 @@ When we delete nodes or leaves, we should delete them from the `nodes`
 deleteChild :: forall a. Partial => ChildIndex -> Tree a -> Tree a
 deleteChild indexToRemove (Tree tree) = Tree { nodes, parents }
   where
-    nodes = withoutIdx indexToRemove tree.nodes
-    shiftLeftIfNeeded i = if i > indexToRemove then (i - 1) else i
-    parents = withoutIndexModify indexToRemove shiftLeftIfNeeded tree.parents
+    shiftIndexLeftIfAfterDeletedNode i =
+      if indexToRemove < i then (i - 1) else i
+
+    nodeRec = { array: tree.nodes
+              , include: \idx _ -> idx /= indexToRemove
+              , modify: \_ el -> el
+              }
+    parentRec = { array: tree.parents
+                , include: \idx _ -> idx /= indexToRemove
+                , modify: \_ parentIdx -> shiftIndexLeftIfAfterDeletedNode parentIdx
+                }
+    Tuple nodes parents = buildInvertedTable (Tuple nodeRec parentRec)
 
 -- Makes a branch's children to be the branch's parent's children and
 -- then deletes the branch.
