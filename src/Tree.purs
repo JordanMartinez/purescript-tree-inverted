@@ -8,6 +8,7 @@ import Data.Array (foldr, length, modifyAt, snoc, unsafeIndex, updateAt, (..))
 import Data.Array.NonEmpty (NonEmptyArray, zip)
 import Data.Array.NonEmpty as NEA
 import Data.Array.ST as STA
+import Data.Array.ST.Partial as STAP
 import Data.FoldableWithIndex (foldlWithIndex, forWithIndex_)
 import Data.HashSet as HashSet
 import Data.Maybe (fromJust)
@@ -209,6 +210,70 @@ setParentIndex childIdx parentIdx (Tree tree) =
       _ <- STA.poke childIdx parentIdx stArray
       pure stArray
 
+{-
+Three things can happen when deleting a node:
+- deleting a leaf: just delete leaf and leave it (no pun intended) as that
+- deleting a branch: delete the branch and its children recursively
+- deleting the root: can either do nothing or wrap return in Maybe
+
+How deletions could be done:
+1 replace element in deleted node's index in `nodes` and `parents` with
+  some value that indicates "this no longer exists". While this could work
+  the only value we could put into array is either null or Nothing, which
+  affects performance due to wrapping
+2 delete elements in arrays and update indices, so that indices in `parents`
+  still correspond to their nodes in `nodes` and update the parent index in
+  `parents` to refer to the updated indices in `nodes`. This is the best
+  solution but is difficult to implement correctly
+
+We choose option 2.
+
+When we delete an element in the array, all elements to the right of
+  deletion point will reduce their index by 1
+    Start:      [0      , 1      , 2         , x      , 4       , 5]
+    Deletion:   [0      , 1      , 2         ,        , 4       , 5]
+    Shifting:   [0      , 1      , 2         , 4      , 5       ]
+    Adjustment: [0      , 1      , 2         , (4 - 1), (5 - 1) ]
+    Final:      [0      , 1      , 2         , 3      , 4       ]
+
+This same adjustment will need to be done in the `parents` side.
+
+However, the `parents` side may have refer to indices before and after the
+  index of deletion. In such a situation, we need to update those indices
+  by reducing them by 1 only if their value is greater than the deleted index.
+    Start:      [5      , 4      , 2         , x      , 1       , 5]
+    Deletion:   [5      , 4      , 2         ,        , 1       , 5]
+    Shifting:   [5      , 4      , 2         , 1      , 5       ]
+    Adjustment: [(5 - 1), (4 - 1), 2         , 1      , (5 - 1) ]
+    Final:      [4      , 3      , 2         , 1      , 4       ]
+
+When we delete nodes or leaves, we should delete them from the `nodes`
+  array and then from the `parents` array bottom-up. We should not batch
+  deletions (e.g. all deletions to `nodes` in one go) unless we can prove
+  that this is safe to do.
+
+-}
+-- runtime error can happen at time X if
+-- - we delete all node in the tree (where X is when this function is called)
+-- - we delete the root node (where X occurs in later function once this one finishes)
+deleteChild :: forall a. Partial => ChildIndex -> Tree a -> Tree a
+deleteChild indexToRemove (Tree tree) = Tree { nodes, parents }
+  where
+    nodes = withoutIdx indexToRemove tree.nodes
+    shiftLeftIfNeeded i = if i > indexToRemove then (i - 1) else i
+    parents = withoutIndexModify indexToRemove shiftLeftIfNeeded tree.parents
+
+deleteBranch :: forall a. Partial => ChildIndex -> Tree a -> Tree a
+deleteBranch indexToRemove t@(Tree tree) = Tree { nodes, parents }
+  where
+    nodes = withoutIdx indexToRemove tree.nodes
+    parentIdx = parentIndex indexToRemove t
+    shiftLeftIfNeeded i = if i > indexToRemove then (i - 1) else i
+    updateParentIfNeeded i = if i == indexToRemove then parentIdx else i
+    adjustRelationIndices =
+      updateParentIfNeeded >>> shiftLeftIfNeeded
+    parents = withoutIndexModify indexToRemove adjustRelationIndices tree.parents
+
 -- Utility functions not found in `purescript-arrays`.
 
 findIndices :: forall a. (a -> Boolean) -> Array a -> Array ArrayIndex
@@ -223,3 +288,29 @@ findIndices found arr = STA.run do
 
 deepCopyArray :: forall a. Array a -> Array a
 deepCopyArray arr = STA.run (STA.thaw arr)
+
+withoutIdx :: forall b. Int -> Array b -> Array b
+withoutIdx indexToRemove array = STA.run do
+  let lastIndex = (length array) - 1
+  arr <- STA.empty
+  readOnlyArray <- STA.unsafeThaw array
+  for 0 lastIndex \currentIndex -> do
+    el <- unsafePartial $ STAP.peek currentIndex readOnlyArray
+    if currentIndex /= indexToRemove then do
+      void $ STA.push el arr
+    else {- currentIndex == indexToRemove -} do
+      pure unit
+  pure arr
+
+withoutIndexModify :: Int -> (Int -> Int) -> Array Int -> Array Int
+withoutIndexModify indexToRemove modify originalArray = STA.run do
+  let lastIndex = (length originalArray) - 1
+  outputArray <- STA.empty
+  readOnlyArray <- STA.unsafeThaw originalArray
+  for 0 lastIndex \currentIndex -> do
+    el <- unsafePartial $ STAP.peek currentIndex readOnlyArray
+    if currentIndex /= indexToRemove then do
+      void $ STA.push (modify currentIndex) outputArray
+    else {- currentIndex == indexToRemove -} do
+      pure unit
+  pure outputArray
