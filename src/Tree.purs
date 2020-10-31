@@ -4,13 +4,12 @@ import Prelude
 
 import Control.Monad.ST (for)
 import Control.Monad.ST as ST
-import Data.Array (catMaybes, foldl, foldr, length, modifyAt, snoc, unsafeIndex, updateAt, (..))
+import Data.Array (foldl, foldr, length, modifyAt, snoc, unsafeIndex, updateAt, (..))
 import Data.Array.NonEmpty (NonEmptyArray, zip)
 import Data.Array.NonEmpty as NEA
 import Data.Array.ST as STA
 import Data.Array.ST.Partial as STAP
 import Data.FoldableWithIndex (foldlWithIndex, forWithIndex_)
-import Data.HashSet (HashSet)
 import Data.HashSet as HashSet
 import Data.Maybe (Maybe(..), fromJust)
 import Data.NonEmpty (foldl1)
@@ -349,3 +348,39 @@ withoutIndexModify indexToRemove modify originalArray = STA.run do
     else {- currentIndex == indexToRemove -} do
       pure unit
   pure outputArray
+
+{-
+What led me here.
+
+Performance-wise, we're iterating over 2 arrays that are of the same size
+to do an update to a data strcuture (i.e. `O(2n)`).
+Since these will always be the same size, why can't we do this in `O(n)` time
+by iterating through each array once in the same iteration.
+-}
+
+type IVTArrayRecord a =
+  { array :: Array a
+  , include :: Int -> a -> Boolean
+  , modify :: Int -> a -> a
+  }
+
+-- Ideally, the input and output `Tuple` would be `HList`.
+buildInvertedTable :: forall a b. Tuple (IVTArrayRecord a) (IVTArrayRecord b) -> (Tuple (Array a) (Array b))
+buildInvertedTable (Tuple first second) = ST.run do
+  let lastIndex = (length first.array) - 1
+  out1 <- STA.empty
+  out2 <- STA.empty
+  readOnly1 <- STA.unsafeThaw first.array
+  readOnly2 <- STA.unsafeThaw second.array
+  for 0 lastIndex \currentIndex -> do
+    el1 <- unsafePartial $ STAP.peek currentIndex readOnly1
+    when (first.include currentIndex el1) do
+      void $ STA.push (first.modify currentIndex el1) out1
+
+    el2 <- unsafePartial $ STAP.peek currentIndex readOnly2
+    when (second.include currentIndex el2) do
+      void $ STA.push (second.modify currentIndex el2) out2
+
+  finished1 <- STA.unsafeFreeze out1
+  finished2 <- STA.unsafeFreeze out2
+  pure (Tuple finished1 finished2)
