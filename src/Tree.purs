@@ -188,6 +188,8 @@ commonParentIndex l r tree = do
 depth :: forall a. Partial => ArrayIndex -> Tree a -> Int
 depth idx tree = NEA.length $ rootToChildIndexPath idx tree
 
+---- Modifications
+
 updateNode :: forall a. Partial => ChildIndex -> a -> Tree a -> Tree a
 updateNode idx newValue (Tree tree) =
   Tree tree { nodes = fromJust $ updateAt idx newValue tree.nodes }
