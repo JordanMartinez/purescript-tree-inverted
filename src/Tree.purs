@@ -34,7 +34,7 @@ import Partial.Unsafe (unsafePartial)
 -- | --        0  1  2 -- index of element in array
 -- |
 -- | nodes:   [1, 2, 3]
--- | parents: [0, 1, 1]
+-- | parents: [0, 0, 0]
 -- | ```
 -- | ...corresponds to...
 -- | ```
