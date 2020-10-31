@@ -54,13 +54,14 @@ type FromIndex = Int
 type ToIndex = Int
 type ChildIndex = Int
 type ParentIndex = Int
+type RootIndex = Int
 
-rootIndex :: forall a. Tree a -> ArrayIndex
+rootIndex :: forall a. Tree a -> RootIndex
 rootIndex (Tree tree) = foldlWithIndex doFold (-1) tree.parents
   where
     doFold idx acc nextIdx = if idx == nextIdx then idx else acc
 
-leafIndices :: forall a. Tree a -> Array ArrayIndex
+leafIndices :: forall a. Tree a -> Array ChildIndex
 leafIndices (Tree tree) = do
   let
     lastIdx = (length tree.parents) - 1
@@ -79,10 +80,22 @@ newtype TreeBuilder h a =
   TreeBuilder (TreeBuilderZipper a -> TreeBuilderZipper a)
 
 deepCopy :: forall a. Tree a -> Tree a
-deepCopy (Tree tree) = Tree
-  { nodes: deepCopyArray tree.nodes
-  , parents: deepCopyArray tree.parents
-  }
+deepCopy (Tree {nodes, parents}) = Tree $ ST.run do
+  let lastIndex = (length nodes) - 1
+  out1 <- STA.empty
+  out2 <- STA.empty
+  readOnly1 <- STA.unsafeThaw nodes
+  readOnly2 <- STA.unsafeThaw parents
+  for 0 lastIndex \currentIndex -> do
+    let el1 = unsafePartial $ unsafeIndex nodes currentIndex
+    _ <- STA.push el1 out1
+
+    let el2 = unsafePartial $ unsafeIndex parents currentIndex
+    STA.push el2 out2
+
+  finished1 <- STA.unsafeFreeze out1
+  finished2 <- STA.unsafeFreeze out2
+  pure { nodes: finished1, parents: finished2 }
 
 buildTree :: forall a. a -> (forall h. TreeBuilder h a) -> Tree a
 buildTree root (TreeBuilder builder) = do
