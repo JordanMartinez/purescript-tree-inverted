@@ -303,16 +303,16 @@ deleteBranch indexToRemove t@(Tree tree) = Tree { nodes, parents }
     parents = withoutIndexModify indexToRemove adjustRelationIndices tree.parents
 
 -- Deletes a branch and all of its children.
-deleteBranchRecursively :: forall a. Partial => ChildIndex -> Tree a -> Tree a
-deleteBranchRecursively indexToRemove t@(Tree tree) = Tree { nodes, parents }
-  where
-    nodes = withoutIdx indexToRemove tree.nodes
-    parentIdx = parentIndex indexToRemove t
-    shiftLeftIfNeeded i = if i > indexToRemove then (i - 1) else i
-    updateParentIfNeeded i = if i == indexToRemove then parentIdx else i
-    adjustRelationIndices =
-      updateParentIfNeeded >>> shiftLeftIfNeeded
-    parents = withoutIndexModify indexToRemove adjustRelationIndices tree.parents
+-- deleteBranchRecursively :: forall a. Partial => ChildIndex -> Tree a -> Tree a
+-- deleteBranchRecursively indexToRemove t@(Tree tree) = Tree { nodes, parents }
+--   where
+--     nodes = withoutIdx indexToRemove tree.nodes
+--     parentIdx = parentIndex indexToRemove t
+--     shiftLeftIfNeeded i = if i > indexToRemove then (i - 1) else i
+--     updateParentIfNeeded i = if i == indexToRemove then parentIdx else i
+--     adjustRelationIndices =
+--       updateParentIfNeeded >>> shiftLeftIfNeeded
+--     parents = withoutIndexModify indexToRemove adjustRelationIndices tree.parents
 
 -- Utility functions not found in `purescript-arrays`.
 
