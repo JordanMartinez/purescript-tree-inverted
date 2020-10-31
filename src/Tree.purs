@@ -11,7 +11,7 @@ import Data.Array.ST as STA
 import Data.Array.ST.Partial as STAP
 import Data.FoldableWithIndex (foldlWithIndex, forWithIndex_)
 import Data.HashSet as HashSet
-import Data.Maybe (fromJust)
+import Data.Maybe (Maybe(..), fromJust)
 import Data.NonEmpty (foldl1)
 import Data.Tuple (Tuple(..))
 import Partial.Unsafe (unsafePartial)
@@ -153,6 +153,21 @@ siblingIndices childIdx theTree@(Tree tree) = foldlWithIndex f [] tree.parents
     parent = parentIndex childIdx theTree
     f index acc parentIdx =
       if parentIdx == parent && index /= childIdx then acc `snoc` index else acc
+
+parentToChildIndexPath :: forall a. Partial => ParentIndex -> ChildIndex -> Tree a -> Maybe (NonEmptyArray ArrayIndex)
+parentToChildIndexPath targetParent originalChild tree@(Tree rec) = do
+  buildIndexPath originalChild (NEA.singleton originalChild)
+  where
+    buildIndexPath :: ArrayIndex -> NonEmptyArray ArrayIndex -> Maybe (NonEmptyArray ArrayIndex)
+    buildIndexPath currentIndex pathSoFar = do
+      let
+        parent = parentIndex currentIndex tree
+        currentPath = NEA.cons parent pathSoFar
+        childIsRootIndex = parent == currentIndex
+        childParentIsTargetParent = parent == targetParent
+      if childIsRootIndex then Nothing
+      else if childParentIsTargetParent then Just currentPath
+      else buildIndexPath parent currentPath
 
 rootToChildIndexPath :: forall a. Partial => ArrayIndex -> Tree a -> NonEmptyArray ArrayIndex
 rootToChildIndexPath idx tree@(Tree rec) = do
