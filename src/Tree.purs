@@ -288,13 +288,25 @@ deleteChild indexToRemove (Tree tree) = Tree { nodes, parents }
 deleteBranch :: forall a. Partial => ChildIndex -> Tree a -> Tree a
 deleteBranch indexToRemove t@(Tree tree) = Tree { nodes, parents }
   where
-    nodes = withoutIdx indexToRemove tree.nodes
-    parentIdx = parentIndex indexToRemove t
-    shiftLeftIfNeeded i = if i > indexToRemove then (i - 1) else i
-    updateParentIfNeeded i = if i == indexToRemove then parentIdx else i
+    branchParentIndex = parentIndex indexToRemove t
+
+    changeParentToParentsParent i =
+      if i == indexToRemove then branchParentIndex else i
+    shiftIndexLeftIfAfterDeletedNode i =
+      if indexToRemove < i then (i - 1) else i
     adjustRelationIndices =
-      updateParentIfNeeded >>> shiftLeftIfNeeded
-    parents = withoutIndexModify indexToRemove adjustRelationIndices tree.parents
+      changeParentToParentsParent
+        >>> shiftIndexLeftIfAfterDeletedNode
+
+    nodeRec = { array: tree.nodes
+              , include: \idx _ -> idx /= indexToRemove
+              , modify: \_ el -> el
+              }
+    parentRec = { array: tree.parents
+                , include: \idx _ -> idx /= indexToRemove
+                , modify: \_ parentIdx -> adjustRelationIndices parentIdx
+                }
+    Tuple nodes parents = buildInvertedTable (Tuple nodeRec parentRec)
 
 -- Deletes a branch and all of its children.
 -- deleteBranchRecursively :: forall a. Partial => ChildIndex -> Tree a -> Tree a
