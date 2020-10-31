@@ -8,7 +8,6 @@ import Data.Array (foldl, foldr, length, modifyAt, snoc, unsafeIndex, updateAt, 
 import Data.Array.NonEmpty (NonEmptyArray, zip)
 import Data.Array.NonEmpty as NEA
 import Data.Array.ST as STA
-import Data.Foldable (for_)
 import Data.FoldableWithIndex (foldlWithIndex, forWithIndex_)
 import Data.HashSet as HashSet
 import Data.Maybe (Maybe(..), fromJust)
@@ -288,22 +287,19 @@ When we delete nodes or leaves, we should delete them from the `nodes`
 deleteChild :: forall a. Partial => ChildIndex -> Tree a -> Tree a
 deleteChild indexToRemove (Tree tree) = Tree { nodes, parents }
   where
+    includeIndex idx = idx /= indexToRemove
+
     shiftIndexLeftIfAfterDeletedNode i =
       if indexToRemove < i then (i - 1) else i
 
     nodeRec = { array: tree.nodes
-              , includeModify: \idx el ->
-                  if idx /= indexToRemove
-                    then Just el
-                    else Nothing
+              , modify: identity
               }
     parentRec = { array: tree.parents
-                , includeModify: \idx parentIdx ->
-                    if idx /= indexToRemove
-                      then Just $ shiftIndexLeftIfAfterDeletedNode parentIdx
-                      else Nothing
+                , modify: shiftIndexLeftIfAfterDeletedNode
                 }
-    Tuple nodes parents = buildInvertedTable (Tuple nodeRec parentRec)
+    Tuple nodes parents =
+      buildInvertedTable includeIndex (Tuple nodeRec parentRec)
 
 -- Makes a branch's children to be the branch's parent's children and
 -- then deletes the branch.
@@ -312,6 +308,7 @@ deleteBranch indexToRemove t@(Tree tree) = Tree { nodes, parents }
   where
     branchParentIndex = parentIndex indexToRemove t
 
+    includeIndex idx = idx /= indexToRemove
     changeParentToParentsParent i =
       if i == indexToRemove then branchParentIndex else i
     shiftIndexLeftIfAfterDeletedNode i =
@@ -321,18 +318,13 @@ deleteBranch indexToRemove t@(Tree tree) = Tree { nodes, parents }
         >>> shiftIndexLeftIfAfterDeletedNode
 
     nodeRec = { array: tree.nodes
-              , includeModify: \idx el ->
-                  if idx /= indexToRemove
-                    then Just el
-                    else Nothing
+              , modify: identity
               }
     parentRec = { array: tree.parents
-                , includeModify: \idx parentIdx ->
-                  if idx /= indexToRemove
-                    then Just $ adjustRelationIndices parentIdx
-                    else Nothing
+                , modify: adjustRelationIndices
                 }
-    Tuple nodes parents = buildInvertedTable (Tuple nodeRec parentRec)
+    Tuple nodes parents =
+      buildInvertedTable includeIndex (Tuple nodeRec parentRec)
 
 -- Deletes a branch and all of its children.
 -- deleteBranchRecursively :: forall a. Partial => ChildIndex -> Tree a -> Tree a
@@ -367,28 +359,28 @@ Since these will always be the same size, why can't we do this in `O(n)` time
 by iterating through each array once in the same iteration.
 -}
 
-type IVTArrayRecord a b =
+type IVTArrayRecord a =
   { array :: Array a
-  , includeModify :: ArrayIndex -> a -> Maybe b
+  , modify :: a -> a
   }
 
 -- Ideally, the input and output `Tuple` would be `HList`.
 buildInvertedTable
-  :: forall a b c d
-   . Tuple (IVTArrayRecord a b) (IVTArrayRecord c d)
-  -> (Tuple (Array b) (Array d))
-buildInvertedTable (Tuple first second) = ST.run do
+  :: forall a b
+   . (ChildIndex -> Boolean)
+  -> Tuple (IVTArrayRecord a) (IVTArrayRecord b)
+  -> (Tuple (Array a) (Array b))
+buildInvertedTable include (Tuple first second) = ST.run do
   let lastIndex = (length first.array) - 1
   out1 <- STA.empty
   out2 <- STA.empty
   for 0 lastIndex \currentIndex -> do
-    let el1 = unsafePartial $ unsafeIndex first.array currentIndex
-    for_ (first.includeModify currentIndex el1) \element ->
-      STA.push element out1
+    when (include currentIndex) do
+      let el1 = unsafePartial $ unsafeIndex first.array currentIndex
+      _ <- STA.push (first.modify el1) out1
 
-    let el2 = unsafePartial $ unsafeIndex second.array currentIndex
-    for_ (second.includeModify currentIndex el2) \element ->
-      STA.push element out2
+      let el2 = unsafePartial $ unsafeIndex second.array currentIndex
+      void $ STA.push (second.modify el2) out2
 
   finished1 <- STA.unsafeFreeze out1
   finished2 <- STA.unsafeFreeze out2
