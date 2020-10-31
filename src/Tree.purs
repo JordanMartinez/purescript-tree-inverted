@@ -69,16 +69,6 @@ leafIndices (Tree tree) = do
     indicesWithoutChildren = foldr HashSet.delete allPossibleIndices tree.parents
   HashSet.toArray indicesWithoutChildren
 
--- Construction
-
-newtype TreeBuilderZipper a = TreeBuilderZipper
-  { tree :: Tree a
-  , focus :: ParentIndex
-  }
-
-newtype TreeBuilder h a =
-  TreeBuilder (TreeBuilderZipper a -> TreeBuilderZipper a)
-
 deepCopy :: forall a. Tree a -> Tree a
 deepCopy (Tree {nodes, parents}) = Tree $ ST.run do
   let lastIndex = (length nodes) - 1
@@ -96,6 +86,16 @@ deepCopy (Tree {nodes, parents}) = Tree $ ST.run do
   finished1 <- STA.unsafeFreeze out1
   finished2 <- STA.unsafeFreeze out2
   pure { nodes: finished1, parents: finished2 }
+
+-- Construction
+
+newtype TreeBuilderZipper a = TreeBuilderZipper
+  { tree :: Tree a
+  , focus :: ParentIndex
+  }
+
+newtype TreeBuilder h a =
+  TreeBuilder (TreeBuilderZipper a -> TreeBuilderZipper a)
 
 buildTree :: forall a. a -> (forall h. TreeBuilder h a) -> Tree a
 buildTree root (TreeBuilder builder) = do
