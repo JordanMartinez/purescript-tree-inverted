@@ -9,6 +9,7 @@ import Data.Array.NonEmpty (NonEmptyArray, zip)
 import Data.Array.NonEmpty as NEA
 import Data.Array.ST as STA
 import Data.Array.ST.Partial as STAP
+import Data.Foldable (for_)
 import Data.FoldableWithIndex (foldlWithIndex, forWithIndex_)
 import Data.HashSet as HashSet
 import Data.Maybe (Maybe(..), fromJust)
@@ -290,12 +291,16 @@ deleteChild indexToRemove (Tree tree) = Tree { nodes, parents }
       if indexToRemove < i then (i - 1) else i
 
     nodeRec = { array: tree.nodes
-              , include: \idx _ -> idx /= indexToRemove
-              , modify: \_ el -> el
+              , includeModify: \idx el ->
+                  if idx /= indexToRemove
+                    then Just el
+                    else Nothing
               }
     parentRec = { array: tree.parents
-                , include: \idx _ -> idx /= indexToRemove
-                , modify: \_ parentIdx -> shiftIndexLeftIfAfterDeletedNode parentIdx
+                , includeModify: \idx parentIdx ->
+                    if idx /= indexToRemove
+                      then Just $ shiftIndexLeftIfAfterDeletedNode parentIdx
+                      else Nothing
                 }
     Tuple nodes parents = buildInvertedTable (Tuple nodeRec parentRec)
 
@@ -315,12 +320,16 @@ deleteBranch indexToRemove t@(Tree tree) = Tree { nodes, parents }
         >>> shiftIndexLeftIfAfterDeletedNode
 
     nodeRec = { array: tree.nodes
-              , include: \idx _ -> idx /= indexToRemove
-              , modify: \_ el -> el
+              , includeModify: \idx el ->
+                  if idx /= indexToRemove
+                    then Just el
+                    else Nothing
               }
     parentRec = { array: tree.parents
-                , include: \idx _ -> idx /= indexToRemove
-                , modify: \_ parentIdx -> adjustRelationIndices parentIdx
+                , includeModify: \idx parentIdx ->
+                  if idx /= indexToRemove
+                    then Just $ adjustRelationIndices parentIdx
+                    else Nothing
                 }
     Tuple nodes parents = buildInvertedTable (Tuple nodeRec parentRec)
 
@@ -357,14 +366,16 @@ Since these will always be the same size, why can't we do this in `O(n)` time
 by iterating through each array once in the same iteration.
 -}
 
-type IVTArrayRecord a =
+type IVTArrayRecord a b =
   { array :: Array a
-  , include :: Int -> a -> Boolean
-  , modify :: Int -> a -> a
+  , includeModify :: ArrayIndex -> a -> Maybe b
   }
 
 -- Ideally, the input and output `Tuple` would be `HList`.
-buildInvertedTable :: forall a b. Tuple (IVTArrayRecord a) (IVTArrayRecord b) -> (Tuple (Array a) (Array b))
+buildInvertedTable
+  :: forall a b c d
+   . Tuple (IVTArrayRecord a b) (IVTArrayRecord c d)
+  -> (Tuple (Array b) (Array d))
 buildInvertedTable (Tuple first second) = ST.run do
   let lastIndex = (length first.array) - 1
   out1 <- STA.empty
@@ -373,12 +384,12 @@ buildInvertedTable (Tuple first second) = ST.run do
   readOnly2 <- STA.unsafeThaw second.array
   for 0 lastIndex \currentIndex -> do
     el1 <- unsafePartial $ STAP.peek currentIndex readOnly1
-    when (first.include currentIndex el1) do
-      void $ STA.push (first.modify currentIndex el1) out1
+    for_ (first.includeModify currentIndex el1) \element ->
+      STA.push element out1
 
     el2 <- unsafePartial $ STAP.peek currentIndex readOnly2
-    when (second.include currentIndex el2) do
-      void $ STA.push (second.modify currentIndex el2) out2
+    for_ (second.includeModify currentIndex el2) \element ->
+      STA.push element out2
 
   finished1 <- STA.unsafeFreeze out1
   finished2 <- STA.unsafeFreeze out2
