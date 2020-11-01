@@ -1,4 +1,39 @@
-module Tree.InvertedTable where
+module Tree.InvertedTable
+  ( Tree -- constructor intentionally not exported
+  , ArrayIndex
+  , FromIndex
+  , ToIndex
+  , ChildIndex
+  , ParentIndex
+  , RootIndex
+  , rootIndex
+  , leafIndices
+  , deepCopy
+  , TreeBuilder -- constructor intentionally not exported
+  , buildTree
+  , pushBranch
+  , pushChild
+  -- pushNode intentionally not exported
+  , nodeAt
+  , parentIndex
+  , immediateChildrenIndices
+  , recursiveChildrenIndices
+  , siblingIndices
+  , parentToChildIndexPath
+  , rootToChildIndexPath
+  , parentToChildDepth
+  , isParentOf
+  , rootToChildDepth
+  , commonParentIndex
+  , depth
+  , updateNode
+  , modifyNode
+  , setParentIndex
+  , deleteChild
+  , deleteBranch
+  , findIndices
+  -- buildInvertedTable intentionally not exported
+  ) where
 
 import Prelude
 
