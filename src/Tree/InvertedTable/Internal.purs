@@ -40,12 +40,11 @@ import Prelude
 
 import Control.Monad.ST (for)
 import Control.Monad.ST as ST
-import Data.Array (cons, foldl, foldr, length, modifyAt, snoc, unsafeIndex, updateAt, (..))
-import Data.Array.NonEmpty (NonEmptyArray, index, zip)
+import Data.Array (foldl, foldr, length, modifyAt, snoc, unsafeIndex, updateAt, (..))
+import Data.Array.NonEmpty (NonEmptyArray, zip)
 import Data.Array.NonEmpty as NEA
 import Data.Array.ST as STA
 import Data.Either (Either(..), either)
-import Data.Foldable (for_)
 import Data.FoldableWithIndex (foldlWithIndex, forWithIndex_)
 import Data.HashSet as HashSet
 import Data.Maybe (Maybe(..), fromJust, isJust)
