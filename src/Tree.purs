@@ -10,7 +10,7 @@ import Data.Array.NonEmpty as NEA
 import Data.Array.ST as STA
 import Data.FoldableWithIndex (foldlWithIndex, forWithIndex_)
 import Data.HashSet as HashSet
-import Data.Maybe (Maybe(..), fromJust)
+import Data.Maybe (Maybe(..), fromJust, isJust)
 import Data.NonEmpty (foldl1)
 import Data.Tuple (Tuple(..))
 import Partial.Unsafe (unsafePartial)
@@ -209,6 +209,10 @@ parentToChildDepth targetParent originalChild tree = do
       if childIsRootIndex then Nothing
       else if childParentIsTargetParent then Just depthSoFar
       else calculateDepth parent (depthSoFar + 1)
+
+isParentOf :: forall a. Partial => ParentIndex -> ChildIndex -> Tree a -> Boolean
+isParentOf targetParent originalChild tree =
+  isJust $ parentToChildDepth targetParent originalChild tree
 
 rootToChildDepth :: forall a. Partial => ArrayIndex -> Tree a -> Int
 rootToChildDepth idx tree = calculateDepth idx 0
