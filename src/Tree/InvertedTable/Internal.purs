@@ -40,10 +40,11 @@ import Prelude
 
 import Control.Monad.ST (for)
 import Control.Monad.ST as ST
-import Data.Array (foldl, foldr, length, modifyAt, snoc, unsafeIndex, updateAt, (..))
-import Data.Array.NonEmpty (NonEmptyArray, zip)
+import Data.Array (cons, foldl, foldr, length, modifyAt, snoc, unsafeIndex, updateAt, (..))
+import Data.Array.NonEmpty (NonEmptyArray, index, zip)
 import Data.Array.NonEmpty as NEA
 import Data.Array.ST as STA
+import Data.Either (Either(..), either)
 import Data.Foldable (for_)
 import Data.FoldableWithIndex (foldlWithIndex, forWithIndex_)
 import Data.HashSet as HashSet
@@ -218,11 +219,27 @@ recursiveChildrenIndices parentIdx t@(Tree tree) =
         Just ar -> foldr HashSet.insert set ar
 
 siblingIndices :: forall a. Partial => ArrayIndex -> Tree a -> Array ArrayIndex
-siblingIndices childIdx t@(Tree tree) = foldlWithIndex f [] tree.parents
+siblingIndices childIdx t@(Tree tree) =
+  either identity identity $ foldlWithIndex f (Right []) tree.parents
   where
-    parent = parentIndex childIdx t
+    childParentIdx = parentIndex childIdx t
     f index acc parentIdx =
-      if parentIdx == parent && index /= childIdx then acc `snoc` index else acc
+      {-
+        if is root element
+          if child is root element then always return empty array
+          else continue fold
+        else if next element shares same parent and isn't child index then
+          add it to array
+        else
+      -}
+      if index == parentIdx then
+        -- root element
+        if index == childIdx then Left []
+        else acc
+      else if parentIdx == childParentIdx && index /= childIdx then
+        (\arr -> arr `snoc` index) <$> acc
+      else {- different child or child we're calculating for -}
+        acc
 
 parentToChildIndexPath :: forall a. Partial => ParentIndex -> ChildIndex -> Tree a -> Maybe (NonEmptyArray ArrayIndex)
 parentToChildIndexPath targetParent originalChild tree = do
