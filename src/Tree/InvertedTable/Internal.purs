@@ -10,6 +10,7 @@ module Tree.InvertedTable.Internal
   , leafIndices
   , deepCopy
   , TreeBuilder -- constructor intentionally not exported
+  , singleton
   , buildTree
   , pushBranch
   , pushChild
@@ -129,6 +130,9 @@ newtype TreeBuilder h a = TreeBuilder
   -> ParentIndex
   -> ST.ST h ArrayIndex
   )
+
+singleton :: forall a. a -> Tree a
+singleton a = Tree { nodes: [a], parents: [0] }
 
 buildTree :: forall a. a -> Maybe (forall h. TreeBuilder h a) -> Tree a
 buildTree root maybeBuilder = Tree $ ST.run do
