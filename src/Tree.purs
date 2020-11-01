@@ -196,10 +196,6 @@ rootToChildIndexPath idx tree = do
       else
         buildIndexPath parent currentPath
 
-childToRootIndexPath :: forall a. Partial => ArrayIndex -> Tree a -> NonEmptyArray ArrayIndex
-childToRootIndexPath idx tree =
-  NEA.reverse $ rootToChildIndexPath idx tree
-
 commonParentIndex :: forall a. Partial => ArrayIndex -> ArrayIndex -> Tree a -> ArrayIndex
 commonParentIndex l r tree = do
   let
