@@ -43,6 +43,7 @@ import Data.Array (foldl, foldr, length, modifyAt, snoc, unsafeIndex, updateAt, 
 import Data.Array.NonEmpty (NonEmptyArray, zip)
 import Data.Array.NonEmpty as NEA
 import Data.Array.ST as STA
+import Data.Foldable (for_)
 import Data.FoldableWithIndex (foldlWithIndex, forWithIndex_)
 import Data.HashSet as HashSet
 import Data.Maybe (Maybe(..), fromJust, isJust)
@@ -129,14 +130,16 @@ newtype TreeBuilder h a = TreeBuilder
   -> ST.ST h ArrayIndex
   )
 
-buildTree :: forall a. a -> (forall h. TreeBuilder h a) -> Tree a
-buildTree root (TreeBuilder builder) = Tree $ ST.run do
+buildTree :: forall a. a -> Maybe (forall h. TreeBuilder h a) -> Tree a
+buildTree root maybeBuilder = Tree $ ST.run do
   nodeArray <- STA.empty
   parentArray <- STA.empty
-  let rec = { nodeArray, parentArray }
 
-  _ <- unsafePartial $ pushNode rec 0 root
-  _ <- builder rec 0
+  _ <- STA.push root nodeArray
+  _ <- STA.push 0 parentArray
+  for_ maybeBuilder \(TreeBuilder builder) -> do
+    let rec = { nodeArray, parentArray }
+    void $ builder rec 0
 
   nodes <- STA.unsafeFreeze nodeArray
   parents <- STA.unsafeFreeze parentArray
