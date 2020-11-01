@@ -148,7 +148,7 @@ buildTree root maybeBuilder = Tree $ ST.run do
   nodes <- STA.unsafeFreeze nodeArray
   parents <- STA.unsafeFreeze parentArray
 
-  pure { nodes: [], parents: [] }
+  pure { nodes, parents }
 
 pushBranch :: forall h a
    . a -> TreeBuilder h a -> TreeBuilder h a
