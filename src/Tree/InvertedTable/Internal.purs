@@ -1,4 +1,4 @@
-module Tree.InvertedTable
+module Tree.InvertedTable.Internal
   ( Tree -- constructor intentionally not exported
   , ArrayIndex
   , FromIndex
