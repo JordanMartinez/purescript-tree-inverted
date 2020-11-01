@@ -362,13 +362,13 @@ deleteBranch indexToRemove t@(Tree tree) = Tree { nodes, parents }
 
 findIndices :: forall a. (a -> Boolean) -> Array a -> Array ArrayIndex
 findIndices found arr = STA.run do
-    ar <- STA.empty
+    output <- STA.empty
     let lastIdx = (length arr) - 1
     for 0 lastIdx \idx -> do
       let next = unsafePartial $ unsafeIndex arr idx
       when (found next) do
-        void $ STA.push idx ar
-    pure ar
+        void $ STA.push idx output
+    pure output
 
 {-
 What led me here.
