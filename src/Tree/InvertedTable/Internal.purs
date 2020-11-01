@@ -41,16 +41,19 @@ import Prelude
 import Control.Monad.Gen (chooseInt)
 import Control.Monad.ST (for)
 import Control.Monad.ST as ST
-import Data.Array (cons, foldl, foldr, length, modifyAt, snoc, unsafeIndex, updateAt, (..))
+import Data.Array (cons, foldl, foldr, length, mapWithIndex, modifyAt, snoc, unsafeIndex, updateAt, (..))
 import Data.Array.NonEmpty (NonEmptyArray, zip)
 import Data.Array.NonEmpty as NEA
 import Data.Array.ST as STA
 import Data.Either (Either(..), either)
-import Data.FoldableWithIndex (foldlWithIndex, forWithIndex_)
+import Data.Foldable (class Foldable, foldMap)
+import Data.FoldableWithIndex (class FoldableWithIndex, foldMapWithIndex, foldlWithIndex, foldrWithIndex, forWithIndex_)
+import Data.FunctorWithIndex (class FunctorWithIndex)
 import Data.HashSet as HashSet
 import Data.Maybe (Maybe(..), fromJust, isJust)
 import Data.NonEmpty (foldl1)
-import Data.TraversableWithIndex (forWithIndex)
+import Data.Traversable (class Traversable, sequence, traverse)
+import Data.TraversableWithIndex (class TraversableWithIndex, forWithIndex, traverseWithIndex)
 import Data.Tuple (Tuple(..))
 import Partial.Unsafe (unsafePartial)
 import Test.QuickCheck.Gen (Gen, vectorOf)
@@ -89,6 +92,28 @@ newtype Tree a = Tree
   }
 
 derive instance eqTree :: Eq a => Eq (Tree a)
+derive instance functorTree :: Functor Tree
+instance functorWithIndex :: FunctorWithIndex Int Tree where
+  mapWithIndex f (Tree tree) = Tree tree { nodes = mapWithIndex f tree.nodes }
+instance foldableTree :: Foldable Tree where
+  foldl f a (Tree tree) = foldl f a tree.nodes
+  foldr f a (Tree tree) = foldr f a tree.nodes
+  foldMap f (Tree tree) = foldMap f tree.nodes
+instance foldableWithIndexTree :: FoldableWithIndex Int Tree where
+  foldlWithIndex f a (Tree tree) = foldlWithIndex f a tree.nodes
+  foldrWithIndex f a (Tree tree) = foldrWithIndex f a tree.nodes
+  foldMapWithIndex f (Tree tree) = foldMapWithIndex f tree.nodes
+instance traversableTree :: Traversable Tree where
+  traverse f (Tree tree) = ado
+    nodes <- traverse f tree.nodes
+    in Tree tree { nodes = nodes }
+  sequence (Tree tree) = ado
+    nodes <- sequence tree.nodes
+    in Tree tree { nodes = nodes }
+instance traversableWithIndex :: TraversableWithIndex Int Tree where
+  traverseWithIndex f (Tree tree) = ado
+    nodes <- traverseWithIndex f tree.nodes
+    in Tree tree { nodes = nodes }
 
 type ArrayIndex = Int
 type FromIndex = Int
