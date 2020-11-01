@@ -151,6 +151,17 @@ deepCopy (Tree {nodes, parents}) = Tree $ ST.run do
   finished2 <- STA.unsafeFreeze out2
   pure { nodes: finished1, parents: finished2 }
 
+toArray :: forall a. Tree a -> Array (Tuple ParentIndex a)
+toArray (Tree tree) = STA.run do
+  st <- STA.empty
+  let lastIdx = length tree.nodes - 1
+  for 0 lastIdx \idx -> do
+    let
+      parent = unsafePartial $ unsafeIndex tree.parents idx
+      node = unsafePartial $ unsafeIndex tree.nodes idx
+    void $ STA.push (Tuple parent node) st
+  pure st
+
 -- Construction
 
 newtype TreeBuilder h a o = TreeBuilder
