@@ -85,6 +85,8 @@ newtype Tree a = Tree
   , parents :: Array ParentIndex
   }
 
+derive instance eqTree :: Eq a => Eq (Tree a)
+
 type ArrayIndex = Int
 type FromIndex = Int
 type ToIndex = Int
