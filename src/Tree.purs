@@ -196,6 +196,30 @@ rootToChildIndexPath idx tree = do
       else
         buildIndexPath parent currentPath
 
+parentToChildDepth :: forall a. Partial => ParentIndex -> ChildIndex -> Tree a -> Maybe Int
+parentToChildDepth targetParent originalChild tree = do
+  calculateDepth originalChild 0
+  where
+    calculateDepth :: ArrayIndex -> Int -> Maybe Int
+    calculateDepth currentIndex depthSoFar = do
+      let
+        parent = parentIndex currentIndex tree
+        childIsRootIndex = parent == currentIndex
+        childParentIsTargetParent = parent == targetParent
+      if childIsRootIndex then Nothing
+      else if childParentIsTargetParent then Just depthSoFar
+      else calculateDepth parent (depthSoFar + 1)
+
+rootToChildDepth :: forall a. Partial => ArrayIndex -> Tree a -> Int
+rootToChildDepth idx tree = calculateDepth idx 0
+  where
+    calculateDepth :: ArrayIndex -> Int -> Int
+    calculateDepth currentIndex depthSoFar = do
+      let parent = parentIndex currentIndex tree
+      if parent == currentIndex then depthSoFar
+      else
+        calculateDepth parent (depthSoFar + 1)
+
 commonParentIndex :: forall a. Partial => ArrayIndex -> ArrayIndex -> Tree a -> ArrayIndex
 commonParentIndex l r tree = do
   let
