@@ -38,9 +38,10 @@ module Tree.InvertedTable.Internal
 
 import Prelude
 
+import Control.Monad.Gen (chooseInt)
 import Control.Monad.ST (for)
 import Control.Monad.ST as ST
-import Data.Array (foldl, foldr, length, modifyAt, snoc, unsafeIndex, updateAt, (..))
+import Data.Array (cons, foldl, foldr, length, modifyAt, snoc, unsafeIndex, updateAt, (..))
 import Data.Array.NonEmpty (NonEmptyArray, zip)
 import Data.Array.NonEmpty as NEA
 import Data.Array.ST as STA
@@ -49,8 +50,10 @@ import Data.FoldableWithIndex (foldlWithIndex, forWithIndex_)
 import Data.HashSet as HashSet
 import Data.Maybe (Maybe(..), fromJust, isJust)
 import Data.NonEmpty (foldl1)
+import Data.TraversableWithIndex (forWithIndex)
 import Data.Tuple (Tuple(..))
 import Partial.Unsafe (unsafePartial)
+import Test.QuickCheck.Gen (Gen, vectorOf)
 
 -- | Models a Tree structure using an inverted table (i.e. rows become
 -- | columns and columns become rows). Think of this as a `Map Int a`.
@@ -188,6 +191,16 @@ pushNode rec parentIdx a = do
   len <- STA.push a rec.nodeArray
   _ <- STA.push parentIdx rec.parentArray
   pure (len - 1)
+
+genTree :: forall a. Gen Int -> Gen a -> Gen (Tree a)
+genTree genNumberOfChildren genNode = do
+  root <- genNode
+  numberOfElems <- genNumberOfChildren
+  childNodes <- vectorOf numberOfElems genNode
+  parents <- forWithIndex childNodes \idx _ -> do
+    parentElem <- chooseInt 0 idx
+    pure parentElem
+  pure $ Tree { nodes: cons root childNodes, parents: cons 0 parents }
 
 -- Internal
 
