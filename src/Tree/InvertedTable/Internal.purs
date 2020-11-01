@@ -125,44 +125,56 @@ deepCopy (Tree {nodes, parents}) = Tree $ ST.run do
 
 -- Construction
 
-newtype TreeBuilder h a = TreeBuilder
+newtype TreeBuilder h a o = TreeBuilder
   ( { nodeArray :: STA.STArray h a
     , parentArray :: STA.STArray h Int
     }
   -> ParentIndex
-  -> ST.ST h ArrayIndex
+  -> ST.ST h o
   )
+
+derive instance functorTreeBuilder :: Functor (TreeBuilder h a)
+instance applyTreeBuilder :: Apply (TreeBuilder h a) where
+  apply (TreeBuilder l) (TreeBuilder r) = TreeBuilder \rec parent -> do
+    f <- l rec parent
+    a <- r rec parent
+    pure (f a)
+instance applicativeTreeBuilder :: Applicative (TreeBuilder h a) where
+  pure a = TreeBuilder \_ _ -> pure a
+instance bindTreeBuilder :: Bind (TreeBuilder h a) where
+  bind (TreeBuilder m) aToMB = TreeBuilder \rec parent -> do
+    a <- m rec parent
+    let (TreeBuilder builder) = aToMB a
+    builder rec parent
+instance monadTreeBuilder :: Monad (TreeBuilder h a)
 
 singleton :: forall a. a -> Tree a
 singleton a = Tree { nodes: [a], parents: [0] }
 
-buildTree :: forall a. a -> Maybe (forall h. TreeBuilder h a) -> Tree a
-buildTree root maybeBuilder = Tree $ ST.run do
+buildTree :: forall a b. a -> (forall h. TreeBuilder h a b) -> Tree a
+buildTree root (TreeBuilder builder) = Tree $ ST.run do
   nodeArray <- STA.empty
   parentArray <- STA.empty
 
-  _ <- STA.push root nodeArray
-  _ <- STA.push 0 parentArray
-  for_ maybeBuilder \(TreeBuilder builder) -> do
-    let rec = { nodeArray, parentArray }
-    void $ builder rec 0
+  let rec = { nodeArray, parentArray }
+  void $ unsafePartial $ pushNode rec 0 root
+  void $ builder rec 0
 
   nodes <- STA.unsafeFreeze nodeArray
   parents <- STA.unsafeFreeze parentArray
 
   pure { nodes, parents }
 
-pushBranch :: forall h a
-   . a -> TreeBuilder h a -> TreeBuilder h a
+pushBranch :: forall h a b
+   . a -> TreeBuilder h a b -> TreeBuilder h a Unit
 pushBranch branch (TreeBuilder addChildren) = TreeBuilder \rec parentIdx -> do
   branchIndex <- unsafePartial $ pushNode rec parentIdx branch
-  _ <- addChildren rec branchIndex
-  pure branchIndex
+  void $ addChildren rec branchIndex
 
 pushChild :: forall h a
-   . a -> TreeBuilder h a
+   . a -> TreeBuilder h a Unit
 pushChild child = TreeBuilder \rec parentIdx -> do
-  unsafePartial $ pushNode rec parentIdx child
+  void $ unsafePartial $ pushNode rec parentIdx child
 
 pushNode :: forall h a
    . Partial
