@@ -123,9 +123,7 @@ type ParentIndex = Int
 type RootIndex = Int
 
 rootIndex :: forall a. Tree a -> RootIndex
-rootIndex (Tree tree) = foldlWithIndex doFold (-1) tree.parents
-  where
-    doFold idx acc nextIdx = if idx == nextIdx then idx else acc
+rootIndex tree = NEA.head $ unsafePartial $ rootToChildIndexPath 0 tree
 
 leafIndices :: forall a. Tree a -> Array ChildIndex
 leafIndices (Tree tree) = do
